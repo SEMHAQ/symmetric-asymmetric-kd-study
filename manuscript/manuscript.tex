@@ -63,7 +63,22 @@ A different line of research focuses on preserving relational structures. Park e
 
 \subsection{Symmetry in Deep Learning}
 
-The concept of symmetry has deep roots in deep learning. Convolutional neural networks exploit translational symmetry through weight sharing~\cite{ref13}. Group-equivariant CNNs~\cite{ref14} extend this to broader symmetry groups. Self-attention mechanisms~\cite{ref15} exhibit permutation symmetry. In representation learning, contrasting symmetric and asymmetric paradigms has proven fruitful: SimSiam~\cite{ref16} and BYOL~\cite{ref17} demonstrate that asymmetric architectures can prevent representational collapse. Our work draws a parallel distinction for knowledge distillation.
+The concept of symmetry has deep roots in deep learning. Convolutional neural networks exploit translational symmetry through weight sharing~\cite{ref13}. Group-equivariant CNNs~\cite{ref14} extend this to broader symmetry groups. Self-attention mechanisms~\cite{ref15} exhibit permutation symmetry. In representation learning, contrasting symmetric and asymmetric paradigms has proven fruitful: SimSiam~\cite{ref16} and BYOL~\cite{ref17} demonstrate that asymmetric architectures can prevent representational collapse.
+
+Our work draws a parallel distinction for knowledge distillation, formalized through two complementary properties:
+
+- **Equivariance (symmetric KD):** A transformation applied to the input should produce corresponding, directly comparable transformations in both teacher and student features. The student's feature map is trained to be directly aligned with the teacher's on a per-sample basis.
+- **Invariance (asymmetric KD):** The relational structure among samples should be preserved under the mapping from teacher to student representation space. The specific coordinates of features may change, but inter-sample relationships remain invariant.
+
+This equivariance/invariance framing connects the symmetric/asymmetric taxonomy to established geometric deep learning concepts~\cite{ref14} and clarifies what each class of methods preserves.
+
+\subsection{Relationship to Existing Taxonomies}
+
+Existing KD taxonomies distinguish methods along several dimensions: output-level vs.~feature-level~\cite{ref8,ref9}, logit-based vs.~structure-based, and instance-level vs.~relational-level~\cite{ref12}. Our symmetric/asymmetric framing is complementary rather than competing:
+
+- "Instance-level" methods (direct per-sample alignment) are a subset of symmetric KD.
+- "Relational-level" methods (pairwise structure preservation) are a subset of asymmetric KD.
+- However, the symmetry framing additionally captures methods that do not fit neatly into the instance/relational binary, such as Attention Transfer (spatially aggregated but directly aligned), and provides a unified mathematical language (equivariance vs.~invariance) for discussing what each method preserves.
 
 \section{Symmetric vs.~Asymmetric Knowledge Distillation}
 
@@ -186,6 +201,25 @@ CC (Peng, 2020) & Asymmetric & 75.81 & $-$0.67\\
 
 Key observations: (1) three of six methods (KD, AT, SP) improve upon the baseline (76.48\%); (2) the best method is SP (asymmetric) at 77.85\%, also surpassing the teacher (76.75\%); (3) symmetric methods show more consistent improvements, while asymmetric methods exhibit higher variance (SP excels, CC underperforms).
 
+\begin{table}[H]
+\caption{Training time (60 epochs on NVIDIA RTX 3090).\label{tab:efficiency}}
+\begin{tabularx}{\textwidth}{lCCC}
+\toprule
+\textbf{Method} & \textbf{Category} & \textbf{Time (min)} & $\Delta$ \textbf{vs. Baseline}\\
+\midrule
+Baseline (No KD) & --- & 13.0 & ---\\
+KD (Hinton, 2015) & Symmetric & 20.0 & +7.0\\
+FitNet (Romero, 2015) & Symmetric & 22.0 & +9.0\\
+AT (Zagoruyko, 2017) & Symmetric & 22.0 & +9.0\\
+SP (Tung, 2019) & Asymmetric & 22.0 & +9.0\\
+CC (Peng, 2020) & Asymmetric & 22.0 & +9.0\\
+RKD (Park, 2019) & Asymmetric & 31.0 & +18.0\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Notably, SP achieves the best accuracy (77.85\%) with training time comparable to other methods (22 min), while RKD incurs a substantial overhead (31 min, +41\%) due to its pairwise distance computation. This suggests that SP offers the best accuracy--efficiency trade-off among the methods evaluated.
+
 \subsection{Learning Curves}
 
 Figure~\ref{fig:curves} shows test accuracy during training. Symmetric methods converge faster in early epochs, while asymmetric methods catch up in mid-training.
@@ -215,25 +249,40 @@ Symmetric average: 77.04\% (range: 76.06--77.71\%). Asymmetric average: 76.70\% 
 \section{Discussion}
 \label{sec:discussion}
 
-\subsection{The Symmetry Spectrum}
+\subsection{Equivariance, Invariance, and the Symmetry Spectrum}
 
-Our taxonomy represents a spectrum rather than a strict dichotomy. \textbf{Attention Transfer} computes attention maps through spatial aggregation (relational operation) but aligns them directly between teacher and student (symmetric loss). \textbf{FitNet} uses a learned regression function, introducing an asymmetric component. \textbf{KD with temperature scaling} transforms distributions before comparison, emphasizing relative relationships. We recommend specifying which level (representation transformation vs.~comparison operation) is being referred to when classifying a method.
+The symmetric/asymmetric distinction can be formalized through two complementary geometric properties:
 
-\subsection{Why Symmetric Methods Converge Faster}
+- \textbf{Symmetric KD enforces equivariance.} The student's feature map is trained to respond to input transformations in a way that is directly comparable to the teacher's response. Formally, for a transformation $g$ acting on the input, symmetric KD encourages $f_S(g(x)) \approx g(f_T(x))$ in representation space.
+- \textbf{Asymmetric KD preserves invariance.} Relational structures among samples should be invariant under the mapping from teacher to student. Formally, $\mathcal{R}(f_S(x_i), f_S(x_j)) \approx \mathcal{R}(f_T(x_i), f_T(x_j))$ regardless of how individual features transform.
 
-Symmetric methods provide per-sample gradient signals that directly push each student feature toward its teacher counterpart, creating a dense gradient field. Asymmetric methods provide gradients through relational structures depending on pairwise interactions. Symmetric KD explicitly enforces equivariance between teacher and student feature maps, while asymmetric KD preserves invariance properties.
+This equivariance/invariance framing connects our taxonomy to geometric deep learning~\cite{ref14} and clarifies the trade-off: equivariance provides stronger per-sample supervision (explaining faster convergence) but may force the student to emulate representations beyond its capacity; invariance preserves structural knowledge while allowing representational flexibility.
 
-\subsection{Why Asymmetric Methods Can Achieve Higher Peak Performance}
+The taxonomy represents a spectrum rather than a strict dichotomy. \textbf{Attention Transfer} computes attention maps through spatial aggregation (relational operation) but aligns them directly (symmetric loss). \textbf{FitNet} uses a learned regression function, introducing an asymmetric component. \textbf{KD with temperature scaling} transforms distributions before comparison, emphasizing relative relationships.
 
-SP's superior performance (77.85\%) can be attributed to the flexibility of relational knowledge transfer. By preserving similarity structures rather than forcing direct alignment, SP allows the student to develop representations naturally suited to its capacity. However, we caution against over-interpreting small accuracy differences---the gap between KD (77.71\%) and SP (77.85\%) is only 0.14 percentage points, and without multiple runs, statistical significance cannot be established.
+\subsection{What the Taxonomy Does and Does Not Tell Us}
+
+The symmetric/asymmetric lens provides:
+- A unified vocabulary for discussing representation alignment vs.\ structure preservation
+- A connection to established geometric deep learning concepts (equivariance/invariance)
+- An organizing principle for understanding convergence behavior
+
+It does not provide:
+- Quantitative predictions about which method will perform best on a new dataset
+- A guarantee that symmetric methods always converge faster (this is dataset-dependent)
+- A replacement for existing taxonomies (output-level vs.\ feature-level, etc.)---it is complementary
+
+\subsection{Efficiency Considerations}
+
+Training time varies substantially across methods (Table~\ref{tab:efficiency}). RKD incurs a 41\% overhead due to pairwise distance computation ($O(b^2 d)$ per batch), while other methods add modest overhead (7--9 min over baseline). SP achieves the best accuracy at no additional computational cost over other KD methods, making it the most efficient choice in this comparison.
 
 \subsection{Limitations}
 
-(1) Single dataset (CIFAR-100) and architecture family (ResNet). (2) Single-run experiments per method. (3) Hyperparameters adopted from prior literature without per-method tuning. (4) Limited method coverage (six of many available KD approaches).
+(1) Single dataset (CIFAR-100) and architecture family (ResNet). (2) Single-run experiments per method---results should be interpreted with appropriate caution. (3) Hyperparameters adopted from prior literature without per-method tuning. (4) Limited method coverage (six of many available KD approaches). (5) The taxonomy is descriptive rather than predictive; it organizes known behaviors but does not guarantee generalization to unseen settings.
 
 \section{Conclusions}
 
-We introduced a perspective for understanding knowledge distillation methods through the lens of symmetry, categorizing methods as symmetric (direct alignment) or asymmetric (relational preservation). Our experimental comparison on CIFAR-100 with six KD methods reveals that symmetric methods converge faster while asymmetric methods can achieve competitive or higher peak performance. The best-performing method, SP, achieves 77.85\%, surpassing both the baseline and teacher network. We discuss boundary cases and acknowledge important limitations, providing a complementary conceptual tool for practitioners.
+We introduced a symmetry-based perspective for understanding knowledge distillation methods, categorizing them as symmetric (direct alignment, enforcing equivariance) or asymmetric (relational preservation, enforcing invariance). Our experimental comparison on CIFAR-100 with six KD methods reveals that symmetric methods converge faster while asymmetric methods achieve competitive peak performance, with SP achieving the best accuracy--efficiency trade-off (77.85\%, 22 min). The taxonomy is complementary to existing classifications and is best understood as a spectrum rather than a dichotomy. We identify important limitations: single-dataset evaluation, single-run experiments, and the descriptive (rather than predictive) nature of the framework. This work provides practitioners with a conceptual tool for understanding KD method behavior and identifies directions for more rigorous comparative research.
 
 \authorcontributions{Conceptualization, D.P. and H.Y.; methodology, H.Y.; software, H.Y.; validation, D.P.; formal analysis, H.Y.; investigation, H.Y.; resources, D.P.; data curation, H.Y.; writing---original draft preparation, H.Y.; writing---review and editing, D.P.; visualization, H.Y.; supervision, D.P.; project administration, D.P.; funding acquisition, D.P. All authors have read and agreed to the published version of the manuscript.}
 
