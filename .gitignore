@@ -41,5 +41,9 @@ experiments/checkpoints/
 # Project config
 .claude/
 
-# Root-level duplicate (actual file in manuscript/)
+# Paper artifacts (keep in local, not on GitHub)
+manuscript/
+review/
+
+# Root-level duplicate
 /manuscript.tex
