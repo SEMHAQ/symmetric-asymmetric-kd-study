@@ -35,9 +35,11 @@ Thumbs.db
 # Data (downloaded dynamically)
 data/
 
-# Experiments - keep results but not checkpoints
+# Checkpoints
 experiments/checkpoints/
-experiments/results/KD_*/student_*.pth
 
 # Project config
 .claude/
+
+# Root-level duplicate (actual file in manuscript/)
+/manuscript.tex
